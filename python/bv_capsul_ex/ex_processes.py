@@ -44,14 +44,20 @@ class AveragePipeline(Pipeline):
         self.add_process('average_sup', AverageProcess())
         self.add_process('average_inf', AverageProcess())
         self.export_parameter('threshold', 'array_file')
-        self.export_parameter('threshold', 'mask_sup')
-        self.export_parameter('threshold', 'mask_inf')
+        self.export_parameter('threshold', 'mask_sup', is_optional=True)
+        self.export_parameter('threshold', 'mask_inf', is_optional=True)
         self.add_link('array_file->average_sup.array_file')
         self.add_link('array_file->average_inf.array_file')
         self.add_link('threshold.mask_sup->average_sup.mask')
         self.add_link('threshold.mask_inf->average_inf.mask')
         self.export_parameter('average_sup', 'average', 'average_sup')
         self.export_parameter('average_inf', 'average', 'average_inf')
+        self.node_position = {
+            'threshold': (139.58311, 75.6937),
+            'inputs': (0.0, 106.6937),
+            'average_inf': (279.08311, 182.38873999999998),
+            'average_sup': (279.08311, 0.0),
+            'outputs': (407.47671, 75.6937)}
 
 
 class UnzipSubjects(Process):
@@ -97,6 +103,13 @@ class GroupAveragePipeline(Pipeline):
         self.add_link('unzip.output_files->individual_avg.array_file')
         self.add_link('individual_avg.average_sup->average_sup.average_files')
         self.add_link('individual_avg.average_inf->average_inf.average_files')
+        self.node_position = {
+            'average_inf': (447.28569, 118.762),
+            'average_sup': (447.28569, 4.306),
+            'individual_avg': (289.06669, 125.0),
+            'inputs': (0.0, 62.0),
+            'outputs': (592.55429, 62.0),
+            'unzip': (136.66689, 23.843)}
 
 
 if __name__ == '__main__':
