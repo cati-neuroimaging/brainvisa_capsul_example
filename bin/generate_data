@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import os.path as osp
+import numpy as np
+from random import randrange, choice
+import json
+
+from capsul.api import get_process_instance
+
+# Make sure that python directory is in sys.path
+python = osp.join(osp.dirname(osp.dirname(sys.argv[0])), 'python')
+if python not in sys.path:
+    sys.path.append(python)
+
+array_size = (10, 10)
+subjects = ['evie', 'claud', 'bulah', 'letta', 'irvine', 'len', 'jay',
+            'verne', 'brain', 'walton', 'audrey', 'terrill', 'alden',
+            'madie', 'fallon', 'rohan', 'bryanna', 'eloise', 'brenton', 
+            'nanie', 'dominiqu', 'claudio', 'garland', 'bridie', 'claribel',
+            'kathlyn', 'trenton', 'el', 'hortenci', 'latonia', 'jacoby',
+            'destinee', 'genoveva', 'britni', 'paulene', 'elvera', 'yoshiko',
+            'wellingt', 'dane', 'maximino', 'deana', 'faron', 'frederic',
+            'billye', 'donovan', 'thora', 'sussie', 'elouise', 'nadia',
+            'eboni', 'lucero', 'jere', 'giselle', 'mossie', 'chastity',
+            'harold', 'dandre', 'robby', 'tammy', 'nils', 'darrien', 'leisa',
+            'webster', 'leroy', 'alexis', 'trevor', 'exie', 'rayshawn',
+            'edsel', 'hampton', 'lawson', 'mozella', 'isabella', 'leilani',
+            'lovie', 'waldo', 'donte', 'delpha', 'pamela', 'tyrel', 'dillard',
+            'mannie', 'amelia', 'misti', 'lorelei', 'clara', 'maymie',
+            'derrell', 'cooper', 'latoya', 'aliyah', 'merlene', 'dequan',
+            'lissa', 'domenica', 'gerald', 'melville', 'glendon', 'garland',
+            'alycia']
+group_names = ['sinusoidally', 'enfold', 'helmholtzian', 'anacardium', 'amyelencephalic']
+center_names = ['lasagna', 'ruby', 'compter']
+
+output_dir = sys.argv[1]
+
+# Create groups
+groups = {}
+group_size = len(subjects)/len(group_names)
+for i in range(len(group_names)):
+    groups[group_names[i]] = subjects[i*group_size : (i+1)*group_size]
+del group_names
+del i
+
+# Generate one random template mask per group
+for group in groups:
+    mask = np.zeros(array_size)
+    xmin = randrange(array_size[0])
+    xmax = randrange(xmin,array_size[0])
+    ymin = randrange(array_size[1])
+    ymax = randrange(ymin,array_size[1])
+    mask[xmin:xmax, ymin:ymax] = 1
+    
+    mask_json = {
+        'group_name': group,
+        'group_subjects': groups[group],
+    }
+    
+    mask_dir = osp.join(output_dir, 'share', 'template_masks')
+    if not osp.exists(mask_dir):
+        os.makedirs(mask_dir)
+    
+    mask_file = osp.join(mask_dir, '%s.npy' % group)
+    np.save(mask_file, mask)
+    
+    json_file = osp.join(mask_dir, '%s.json' % group)
+    json.dump(mask_json, open(json_file,'w'))
+    
+# Generate one data file per subject
+center_per_subject = {}
+for subject in subjects:
+    array = np.random.random(array_size)
+    
+    center = choice(center_names)
+    center_per_subject[subject] = center
+    subject_json = dict(
+        subject_code=subject,
+        center_code=center)
+    
+    file = '{output}/database/random_matrix/{center}/{subject}/{subject}'.format(output=output_dir, 
+                                                                                 center=center, 
+                                                                                 subject=subject)
+    dir = osp.dirname(file)
+    if not osp.exists(dir):
+        os.makedirs(dir)
+    np.save(file + '.npy', array)
+    json.dump(mask_json, open(file + '.json','w'))
+
+# Generate results
+for group in groups:
+    subjects = groups[group]
+    
+    input_files = ['{output}/database/random_matrix/{center}/{subject}/{subject}.npy'.format(output=output_dir, 
+                                                                                      center=center_per_subject[subject], 
+                                                                                      subject=subject)
+                   for subject in subjects]
+    template_mask = '{output}/share/template_masks/{group}.npy'.format(output=output_dir, 
+                                                                       group=group)
+    threshold = 0.5
+    averages_sup = ['{output}/database/group_average/{center}/{subject}/{subject}_avg_sup.npy'.format(output=output_dir, 
+                                                                                                      center=center_per_subject[subject], 
+                                                                                                      subject=subject)
+                    for subject in subjects]
+    averages_inf = ['{output}/database/group_average/{center}/{subject}/{subject}_avg_inf.npy'.format(output=output_dir, 
+                                                                                                      center=center_per_subject[subject], 
+                                                                                                      subject=subject)
+                    for subject in subjects]
+    group_average_sup = '{output}/database/group_average/{group}_sup.npy'.format(output=output_dir, 
+                                                                                 group=group)
+    group_average_inf = '{output}/database/group_average/{group}_inf.npy'.format(output=output_dir, 
+                                                                                 group=group)
+    
+    pipeline = get_process_instance('bv_capsul_ex.ex_processes.GroupAveragePipeline',
+                                    input_files=input_files,
+                                    template_mask = template_mask,
+                                    threshold=threshold,
+                                    averages_sup=averages_sup,
+                                    averages_inf=averages_inf,
+                                    group_average_sup=group_average_sup,
+                                    group_average_inf=group_average_inf)
+    print 'Running group pipeline for group', group
+    pipeline.run()
+    
