@@ -16,9 +16,7 @@ debug = False
 
 class TestCapsulEx(unittest.TestCase):
 
-    def __init__(self, testCaseNames):
-        super(TestCapsulEx, self).__init__(testCaseNames)
-
+    def setUp(self):
         tmpout = tempfile.mkdtemp(prefix='capsul_ex_test_')
 
         self.work_dir = tmpout
@@ -30,7 +28,6 @@ class TestCapsulEx(unittest.TestCase):
                                                        'stdout'), 'w'))
         self.output = os.path.join(self.work_dir, 'output_data')
 
-    def setUp(self):
         study_config = StudyConfig(modules=['SomaWorkflowConfig'])
         study_config.input_directory = '/tmp'
         study_config.somaworkflow_computing_resource = 'localhost'
@@ -39,12 +36,13 @@ class TestCapsulEx(unittest.TestCase):
         }
         self.study_config = study_config
 
-    def __del__(self):
-        if os.path.exists(self.work_dir) and not debug:
-          shutil.rmtree(self.work_dir)
-
     def tearDown(self):
-        pass
+        if os.path.exists(self.work_dir):
+          if not debug:
+              print('del test and dir:', self.work_dir)
+              shutil.rmtree(self.work_dir)
+          else:
+              print('leaving existing directory:', self.work_dir)
 
     def setup_pipeline(self):
         input_dirs = glob.glob(os.path.join(
@@ -130,6 +128,7 @@ if __name__ == "__main__":
 
     if verbose:
         test = TestCapsulEx('pass_me')
+        test.setUp()
         test.setup_pipeline()
         #from tempfile import mkstemp
         from capsul.qt_gui.widgets.pipeline_developper_view \
@@ -165,6 +164,7 @@ if __name__ == "__main__":
         if qapp is not None:
             qapp.exec_()
 
+        test.tearDown()
         del test
 
 
