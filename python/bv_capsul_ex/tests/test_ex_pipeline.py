@@ -23,9 +23,10 @@ class TestCapsulEx(unittest.TestCase):
         print('working dir:', tmpout)
         self.input = os.path.join(self.work_dir, 'input_data')
 
+        stdout = open(os.path.join(self.work_dir, 'stdout'), 'w')
         subprocess.check_call(['generate_data', self.input],
-                              stdout=open(os.path.join(self.work_dir,
-                                                       'stdout'), 'w'))
+                              stdout=stdout, stderr=stdout)
+        del stdout
         self.output = os.path.join(self.work_dir, 'output_data')
 
         study_config = StudyConfig(modules=['SomaWorkflowConfig'])
