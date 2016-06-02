@@ -180,7 +180,7 @@ class TestCapsulEx(unittest.TestCase):
         pinputs = {
             'capsul_attributes': attrib,
             'threshold': 0.75,
-            'template_mask': '/tmp/mask',
+            'template_mask': '/tmp/mask.npy',
         }
         self.assertEqual(
             apipeline.get_attributes_controller().user_traits().keys(),
@@ -188,15 +188,21 @@ class TestCapsulEx(unittest.TestCase):
              'extension'])
         apipeline.complete_parameters(process_inputs=pinputs)
         self.assertEqual(pipeline.threshold, 0.75)
-        print('template_mask:', pipeline.template_mask)
-        print('threshold.mask_inf:', pipeline.nodes['threshold'].process.mask_inf)
-        print('threshold.mask_sup:', pipeline.nodes['threshold'].process.mask_sup)
-        print('template_mask_inf.mask:', pipeline.nodes['template_mask_inf'].process.mask)
-        print('template_mask_inf.outpupt:', pipeline.nodes['template_mask_inf'].process.output)
-        print('template_mask_sup.mask:', pipeline.nodes['template_mask_sup'].process.mask)
-        print('template_mask_sup.output:', pipeline.nodes['template_mask_sup'].process.output)
-        print('average_inf.average:', pipeline.nodes['average_inf'].process.average)
-        print('average_sup.average:', pipeline.nodes['average_sup'].process.average)
+        self.assertEqual(pipeline.template_mask, '/tmp/mask.npy')
+        self.assertEqual(pipeline.nodes['threshold'].process.mask_inf,
+                         '/tmp/input_data_thresholded_inf.npy')
+        self.assertEqual(pipeline.nodes['threshold'].process.mask_sup,
+                         '/tmp/input_data_thresholded_sup.npy')
+        self.assertEqual(pipeline.nodes['template_mask_inf'].process.output,
+                         '/tmp/input_data_thresholded_inf_masked.npy')
+        self.assertEqual(pipeline.nodes['template_mask_sup'].process.output,
+                         '/tmp/input_data_thresholded_sup_masked.npy')
+        self.assertEqual(
+            pipeline.nodes['average_inf'].process.average,
+            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+        self.assertEqual(
+            pipeline.nodes['average_sup'].process.average,
+            '/tmp/input_data_input_data_thresholded_sup_masked_average.npy')
         self.assertEqual(
             pipeline.average_inf,
             '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
