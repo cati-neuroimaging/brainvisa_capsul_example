@@ -148,6 +148,24 @@ class TestCapsulEx(unittest.TestCase):
         self.assertEqual(mask.output,
                          '/tmp/input_data_thresholded_inf_masked.npy')
 
+        avg =  ex_processes.AverageProcess()
+        aavg = AttributedProcessFactory().get_attributed_process(
+            avg, self.study_config, 'mask')
+        self.assertTrue(aavg is not None)
+        attrib = {
+            'output_directory': '/tmp',
+            'extension': 'npy',
+        }
+        pinputs = {
+            'capsul_attributes': attrib,
+            'array_file': '/tmp/input_data.npy',
+            'mask': '/tmp/input_data_thresholded_inf_masked.npy',
+        }
+        aavg.complete_parameters(process_inputs=pinputs)
+        self.assertEqual(
+            avg.average,
+            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+
     def test_pipeline_adhoc_completion(self):
         pipeline = ex_processes.AveragePipeline()
         apipeline = AttributedProcessFactory().get_attributed_process(
@@ -159,6 +177,32 @@ class TestCapsulEx(unittest.TestCase):
             'array_filename': 'input_data',
             'extension': 'npy',
         }
+        pinputs = {
+            'capsul_attributes': attrib,
+            'threshold': 0.75,
+            'template_mask': '/tmp/mask',
+        }
+        self.assertEqual(
+            apipeline.get_attributes_controller().user_traits().keys(),
+            ['input_directory', 'output_directory', 'array_filename',
+             'extension'])
+        apipeline.complete_parameters(process_inputs=pinputs)
+        self.assertEqual(pipeline.threshold, 0.75)
+        print('template_mask:', pipeline.template_mask)
+        print('threshold.mask_inf:', pipeline.nodes['threshold'].process.mask_inf)
+        print('threshold.mask_sup:', pipeline.nodes['threshold'].process.mask_sup)
+        print('template_mask_inf.mask:', pipeline.nodes['template_mask_inf'].process.mask)
+        print('template_mask_inf.outpupt:', pipeline.nodes['template_mask_inf'].process.output)
+        print('template_mask_sup.mask:', pipeline.nodes['template_mask_sup'].process.mask)
+        print('template_mask_sup.output:', pipeline.nodes['template_mask_sup'].process.output)
+        print('average_inf.average:', pipeline.nodes['average_inf'].process.average)
+        print('average_sup.average:', pipeline.nodes['average_sup'].process.average)
+        self.assertEqual(
+            pipeline.average_inf,
+            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+        self.assertEqual(
+            pipeline.average_sup,
+            '/tmp/input_data_input_data_thresholded_sup_masked_average.npy')
 
 
 def test():
