@@ -10,7 +10,9 @@ import subprocess
 import numpy as npy
 import glob
 from capsul.study_config import StudyConfig
+from capsul.process.attributed_process import AttributedProcessFactory
 from bv_capsul_ex import ex_processes
+from bv_capsul_ex import adhoc_completion as adc
 
 debug = False
 
@@ -106,6 +108,27 @@ class TestCapsulEx(unittest.TestCase):
         self.study_config.use_soma_workflow = True
         result = self.study_config.run(self.pipeline2)
         self.assertEqual(result, None)
+
+    def test_process_adhoc_completion(self):
+        threshold = ex_processes.ThresholdProcess()
+        athreshold = AttributedProcessFactory().get_attributed_process(
+            threshold, self.study_config, 'threshold')
+        self.assertTrue(athreshold is not None)
+        attrib = {
+            'input_directory': '/tmp',
+            'output_directory': '/tmp',
+            'array_filename': 'input_data',
+            'extension': 'npy',
+        }
+        pinputs = {
+            'capsul_attributes': attrib,
+            'threshold': 0.43,
+        }
+        athreshold.complete_parameters(process_inputs=pinputs)
+        self.assertEqual(threshold.array_file, '/tmp/input_data.npy')
+        self.assertEqual(threshold.threshold, 0.43)
+        self.assertEqual(threshold.mask_inf, '/tmp/input_data_masked_inf.npy')
+        self.assertEqual(threshold.mask_sup, '/tmp/input_data_masked_sup.npy')
 
 
 def test():
