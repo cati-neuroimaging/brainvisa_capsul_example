@@ -127,8 +127,38 @@ class TestCapsulEx(unittest.TestCase):
         athreshold.complete_parameters(process_inputs=pinputs)
         self.assertEqual(threshold.array_file, '/tmp/input_data.npy')
         self.assertEqual(threshold.threshold, 0.43)
-        self.assertEqual(threshold.mask_inf, '/tmp/input_data_masked_inf.npy')
-        self.assertEqual(threshold.mask_sup, '/tmp/input_data_masked_sup.npy')
+        self.assertEqual(threshold.mask_inf,
+                         '/tmp/input_data_thresholded_inf.npy')
+        self.assertEqual(threshold.mask_sup,
+                         '/tmp/input_data_thresholded_sup.npy')
+
+        mask =  ex_processes.Mask()
+        amask = AttributedProcessFactory().get_attributed_process(
+            mask, self.study_config, 'mask')
+        self.assertTrue(amask is not None)
+        attrib = {
+            'output_directory': '/tmp',
+            'extension': 'npy',
+        }
+        pinputs = {
+            'capsul_attributes': attrib,
+            'input': '/tmp/input_data_thresholded_inf.npy',
+        }
+        amask.complete_parameters(process_inputs=pinputs)
+        self.assertEqual(mask.output,
+                         '/tmp/input_data_thresholded_inf_masked.npy')
+
+    def test_pipeline_adhoc_completion(self):
+        pipeline = ex_processes.AveragePipeline()
+        apipeline = AttributedProcessFactory().get_attributed_process(
+            pipeline, self.study_config, 'average_pipeline')
+        self.assertTrue(apipeline is not None)
+        attrib = {
+            'input_directory': '/tmp',
+            'output_directory': '/tmp',
+            'array_filename': 'input_data',
+            'extension': 'npy',
+        }
 
 
 def test():
