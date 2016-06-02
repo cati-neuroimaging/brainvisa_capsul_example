@@ -21,7 +21,6 @@ class ThresholdProcess(Process):
         mask_sup = (arr >= self.threshold)
         mask_inf = (arr < self.threshold)
         np_save(self.mask_sup, mask_sup)
-        
         np_save(self.mask_inf, mask_inf)
 
 
@@ -50,13 +49,15 @@ class ConvertInputs(Process):
             r = open(self.input_files[i],'rb').read()
             open(self.output_files[i],'wb').write(r)
 
-    #@on_trait_change('input_files')
-    #def update_output_files(self):
     @on_trait_change('input_files')
     def _input_files_changed(self):
-        print 'input_files callback'
         if self.output_files is Undefined or not self.output_files:
             self.output_files = [''] * len(self.input_files)
+        elif len(self.output_files) < len(self.input_files):
+            self.output_files += [''] * (len(self.input_files)
+                                         - len(self.output_files))
+        elif len(self.output_files) > len(self.input_files):
+            self.output_files = self.output_files[:len(self.input_files)]
 
 class Mask(Process):
     def __init__(self):

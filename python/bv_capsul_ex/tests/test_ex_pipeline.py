@@ -32,7 +32,9 @@ class TestCapsulEx(unittest.TestCase):
         self.output = os.path.join(self.work_dir, 'output_data')
 
         study_config = StudyConfig(modules=['SomaWorkflowConfig'])
-        study_config.input_directory = '/tmp'
+        study_config.input_directory = self.input
+        study_config.output_directory = os.path.join(
+            self.work_dir, 'output_data')
         study_config.somaworkflow_computing_resource = 'localhost'
         study_config.somaworkflow_computing_resources_config.localhost = {
             'transfer_paths': [],
@@ -50,6 +52,8 @@ class TestCapsulEx(unittest.TestCase):
     def setup_pipeline(self):
         input_dirs = glob.glob(os.path.join(
             self.input, 'database/random_matrix/lasagna/*'))
+        self.groups = [os.path.basename(os.path.dirname(x))
+                       for x in input_dirs]
         self.subjects = [os.path.basename(x) for x in input_dirs]
         self.input_files = [os.path.join(p, x + '.npy')
                             for p, x in zip(input_dirs, self.subjects)]
@@ -110,13 +114,12 @@ class TestCapsulEx(unittest.TestCase):
         self.assertEqual(result, None)
 
     def test_process_adhoc_completion(self):
+        study_config = self.study_config
         threshold = ex_processes.ThresholdProcess()
         athreshold = AttributedProcessFactory().get_attributed_process(
-            threshold, self.study_config, 'threshold')
+            threshold, study_config, 'threshold')
         self.assertTrue(athreshold is not None)
         attrib = {
-            'input_directory': '/tmp',
-            'output_directory': '/tmp',
             'array_filename': 'input_data',
             'extension': 'npy',
         }
@@ -125,90 +128,153 @@ class TestCapsulEx(unittest.TestCase):
             'threshold': 0.43,
         }
         athreshold.complete_parameters(process_inputs=pinputs)
-        self.assertEqual(threshold.array_file, '/tmp/input_data.npy')
+        self.assertEqual(threshold.array_file,
+                         os.path.join(study_config.input_directory,
+                                      'input_data.npy'))
         self.assertEqual(threshold.threshold, 0.43)
-        self.assertEqual(threshold.mask_inf,
-                         '/tmp/input_data_thresholded_inf.npy')
-        self.assertEqual(threshold.mask_sup,
-                         '/tmp/input_data_thresholded_sup.npy')
+        self.assertEqual(
+            threshold.mask_inf,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_inf.npy'))
+        self.assertEqual(
+            threshold.mask_sup,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_sup.npy'))
 
         mask =  ex_processes.Mask()
         amask = AttributedProcessFactory().get_attributed_process(
-            mask, self.study_config, 'mask')
+            mask, study_config, 'mask')
         self.assertTrue(amask is not None)
         attrib = {
-            'output_directory': '/tmp',
             'extension': 'npy',
         }
         pinputs = {
             'capsul_attributes': attrib,
-            'input': '/tmp/input_data_thresholded_inf.npy',
+            'input': os.path.join(study_config.output_directory,
+                                  'input_data_thresholded_inf.npy'),
         }
         amask.complete_parameters(process_inputs=pinputs)
         self.assertEqual(mask.output,
-                         '/tmp/input_data_thresholded_inf_masked.npy')
+                         os.path.join(study_config.output_directory,
+                                      'input_data_thresholded_inf_masked.npy'))
 
         avg =  ex_processes.AverageProcess()
         aavg = AttributedProcessFactory().get_attributed_process(
-            avg, self.study_config, 'mask')
+            avg, study_config, 'mask')
         self.assertTrue(aavg is not None)
         attrib = {
-            'output_directory': '/tmp',
             'extension': 'npy',
         }
         pinputs = {
             'capsul_attributes': attrib,
-            'array_file': '/tmp/input_data.npy',
-            'mask': '/tmp/input_data_thresholded_inf_masked.npy',
+            'array_file': os.path.join(study_config.input_directory,
+                                       'input_data.npy'),
+            'mask': os.path.join(study_config.output_directory,
+                                 'input_data_thresholded_inf_masked.npy'),
         }
         aavg.complete_parameters(process_inputs=pinputs)
         self.assertEqual(
             avg.average,
-            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+            os.path.join(study_config.output_directory,
+                'input_data_input_data_thresholded_inf_masked_average.npy'))
 
     def test_pipeline_adhoc_completion(self):
+        study_config = self.study_config
         pipeline = ex_processes.AveragePipeline()
         apipeline = AttributedProcessFactory().get_attributed_process(
-            pipeline, self.study_config, 'average_pipeline')
+            pipeline, study_config, 'average_pipeline')
         self.assertTrue(apipeline is not None)
         attrib = {
-            'input_directory': '/tmp',
-            'output_directory': '/tmp',
             'array_filename': 'input_data',
             'extension': 'npy',
         }
         pinputs = {
             'capsul_attributes': attrib,
             'threshold': 0.75,
-            'template_mask': '/tmp/mask.npy',
+            'template_mask': os.path.join(
+                study_config.input_directory,
+                'share/template_masks/amyelencephalic.npy'),
         }
         self.assertEqual(
             apipeline.get_attributes_controller().user_traits().keys(),
-            ['input_directory', 'output_directory', 'array_filename',
-             'extension'])
+            ['array_filename', 'extension'])
         apipeline.complete_parameters(process_inputs=pinputs)
         self.assertEqual(pipeline.threshold, 0.75)
-        self.assertEqual(pipeline.template_mask, '/tmp/mask.npy')
-        self.assertEqual(pipeline.nodes['threshold'].process.mask_inf,
-                         '/tmp/input_data_thresholded_inf.npy')
-        self.assertEqual(pipeline.nodes['threshold'].process.mask_sup,
-                         '/tmp/input_data_thresholded_sup.npy')
-        self.assertEqual(pipeline.nodes['template_mask_inf'].process.output,
-                         '/tmp/input_data_thresholded_inf_masked.npy')
-        self.assertEqual(pipeline.nodes['template_mask_sup'].process.output,
-                         '/tmp/input_data_thresholded_sup_masked.npy')
+        self.assertEqual(
+            pipeline.template_mask,
+            os.path.join(study_config.input_directory,
+                         'share/template_masks/amyelencephalic.npy'))
+        self.assertEqual(
+            pipeline.nodes['threshold'].process.mask_inf,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_inf.npy'))
+        self.assertEqual(
+            pipeline.nodes['threshold'].process.mask_sup,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_sup.npy'))
+        self.assertEqual(
+            pipeline.nodes['template_mask_inf'].process.output,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_inf_masked.npy'))
+        self.assertEqual(
+            pipeline.nodes['template_mask_sup'].process.output,
+            os.path.join(study_config.output_directory,
+                         'input_data_thresholded_sup_masked.npy'))
         self.assertEqual(
             pipeline.nodes['average_inf'].process.average,
-            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+            os.path.join(
+                study_config.output_directory,
+                'input_data_input_data_thresholded_inf_masked_average.npy'))
         self.assertEqual(
             pipeline.nodes['average_sup'].process.average,
-            '/tmp/input_data_input_data_thresholded_sup_masked_average.npy')
+            os.path.join(
+                study_config.output_directory,
+                'input_data_input_data_thresholded_sup_masked_average.npy'))
         self.assertEqual(
             pipeline.average_inf,
-            '/tmp/input_data_input_data_thresholded_inf_masked_average.npy')
+            os.path.join(
+                study_config.output_directory,
+                'input_data_input_data_thresholded_inf_masked_average.npy'))
         self.assertEqual(
             pipeline.average_sup,
-            '/tmp/input_data_input_data_thresholded_sup_masked_average.npy')
+            os.path.join(
+                study_config.output_directory,
+                'input_data_input_data_thresholded_sup_masked_average.npy'))
+
+    def test_group_pipeline_adhoc_completion(self):
+        self.setup_pipeline()
+        study_config = self.study_config
+        agpipeline = AttributedProcessFactory().get_attributed_process(
+            self.pipeline2, study_config, 'group_average_pipeline')
+        self.assertTrue(agpipeline is not None)
+        attrib = {
+            'group': self.groups,
+            'subject': self.subjects,
+            'extension': 'npy',
+            'template': 'amyelencephalic',
+        }
+        pinputs = {
+            'capsul_attributes': attrib,
+            'threshold': 0.55,
+        }
+        self.assertEqual(
+            agpipeline.get_attributes_controller().user_traits().keys(),
+            ['group', 'subject', 'extension', 'template'])
+        agpipeline.complete_parameters(process_inputs=pinputs)
+        for ifname in self.pipeline2.input_files:
+            self.assertTrue(os.path.exists(ifname))
+        self.assertEqual(len(self.pipeline2.averages_sup), len(self.subjects))
+
+        # run sequentially
+        study_config.use_soma_workflow = False
+        res = study_config.run(self.pipeline2)
+        self.assertEqual(res, None)
+        for ofname in self.pipeline2.averages_sup:
+            self.assertTrue(os.path.exists(ofname))
+        for ofname in self.pipeline2.averages_inf:
+            self.assertTrue(os.path.exists(ofname))
+        self.assertTrue(os.path.exists(self.pipeline2.group_average_sup))
+        self.assertTrue(os.path.exists(self.pipeline2.group_average_inf))
 
 
 def test():
