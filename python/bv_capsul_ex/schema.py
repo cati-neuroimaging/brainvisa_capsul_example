@@ -5,7 +5,7 @@ from traits.api import String
 
 
 class BrainvisaTestSchema(AttributesSchema):
-    schema_name = 'bv_capsul_ex'
+    factory_id = 'bv_capsul_ex'
     
     class Acquisition(EditableAttributes):
         center = String()
@@ -18,11 +18,11 @@ class BrainvisaTestSchema(AttributesSchema):
         analysis = String()
 
 class BrainvisaTestSharedSchema(AttributesSchema):
-    schema_name = 'bv_capsul_shared'
+    factory_id = 'bv_capsul_shared'
 
 class AveragePipelineAttributes(ProcessAttributes):
-    def __init__(self, process, schema):
-        super(AveragePipelineAttributes, self).__init__(process, schema)
+    def __init__(self, process, schema_dict):
+        super(AveragePipelineAttributes, self).__init__(process, schema_dict)
         
         self.set_parameter_attributes('array_file', 'input', 'Acquisition', dict(type='array'))
         self.set_parameter_attributes('average_sup', 'output', ['Acquisition', 'Processing'], dict(type='average', threshold='sup'))
@@ -34,16 +34,16 @@ class AveragePipelineAttributes(ProcessAttributes):
 if __name__ == '__main__':
     import six
     from capsul.api import get_process_instance
-    from capsul.attributes_schema import AttributesSchemaFactory
+    from capsul.attributes_factory import AttributesFactory
     from pprint import pprint
     
     process = get_process_instance('bv_capsul_ex.ex_processes.AveragePipeline')
     
-    asm = AttributesSchemaFactory()
-    asm.module_path.append('bv_capsul_ex.schema')
+    factory = AttributesFactory()
+    factory.module_path.append('bv_capsul_ex.schema')
     
-    schema = asm.get_attributes_schema('bv_capsul_ex')
-    schema_shared = asm.get_attributes_schema('bv_capsul_ex')
+    schema = factory.get('schema', 'bv_capsul_ex')
+    schema_shared = factory.get('schema', 'bv_capsul_ex')
     
     process_attributes = AveragePipelineAttributes(process, dict(input=schema, output=schema, shared=schema_shared))
     process_attributes.center = 'the_center'
