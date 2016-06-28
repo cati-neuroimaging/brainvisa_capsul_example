@@ -1,6 +1,7 @@
 from __future__ import print_function
 
-from capsul.attributes_schema import AttributesSchema, EditableAttributes, ProcessAttributes
+from capsul.attributes.attributes_schema import AttributesSchema, \
+    EditableAttributes, ProcessAttributes
 from traits.api import String
 
 
@@ -21,14 +22,39 @@ class BrainvisaTestSharedSchema(AttributesSchema):
     factory_id = 'bv_capsul_shared'
 
 class AveragePipelineAttributes(ProcessAttributes):
+    factory_id = 'AveragePipeline'
+
     def __init__(self, process, schema_dict):
         super(AveragePipelineAttributes, self).__init__(process, schema_dict)
-        
-        self.set_parameter_attributes('array_file', 'input', 'Acquisition', dict(type='array'))
-        self.set_parameter_attributes('average_sup', 'output', ['Acquisition', 'Processing'], dict(type='average', threshold='sup'))
-        self.set_parameter_attributes('average_inf', 'output', ['Acquisition', 'Processing'], dict(type='average', threshold='inf'))
-        
-        self.set_parameter_attributes('template', 'shared', ['Acquisition', 'Processing'], dict(type='average', threshold='inf'))
+
+        self.set_parameter_attributes('array_file', 'input', 'Acquisition',
+                                      dict(type='array'))
+        self.set_parameter_attributes('average_sup', 'output',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='average', threshold='sup'))
+        self.set_parameter_attributes('average_inf', 'output',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='average', threshold='inf'))
+
+        self.set_parameter_attributes('template', 'shared',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='average', threshold='inf'))
+
+
+class ThresholdAttributes(ProcessAttributes):
+    factory_id = 'ThresholdProcess'
+
+    def __init__(self, process, schema_dict):
+        super(ThresholdAttributes, self).__init__(process, schema_dict)
+
+        self.set_parameter_attributes('array_file', 'input', 'Acquisition',
+                                      dict(type='array'))
+        self.set_parameter_attributes('mask_sup', 'output',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='average', threshold='sup'))
+        self.set_parameter_attributes('mask_inf', 'output',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='average', threshold='inf'))
 
 
 if __name__ == '__main__':
