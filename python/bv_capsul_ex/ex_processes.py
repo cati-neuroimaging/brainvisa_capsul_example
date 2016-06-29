@@ -41,7 +41,7 @@ class AverageProcess(Process):
 
 class ConvertInputs(Process):
     input_files = List(File)
-    output_files = List(File, output=True)
+    output_files = List(File(output=True), output=True)
 
     def _run_process(self):
         print 'ConvertInputs'

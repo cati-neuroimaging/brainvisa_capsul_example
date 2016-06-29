@@ -13,7 +13,6 @@ class ThresholdProcessAdhocCompletion(ProcessCompletionEngine):
         self.set_parameters(process_inputs)
         study_config = self.process.get_study_config()
         attrib = self.get_attribute_values().get_parameters_attributes()
-        print(attrib)
         self.process.array_file = os.path.join(
             study_config.input_directory, '%s_%s.npy'
             % (attrib['array_file']['center'],
@@ -32,16 +31,78 @@ class ThresholdProcessAdhocCompletion(ProcessCompletionEngine):
                attrib['mask_sup']['threshold']))
 
 
-class ThresholdProcessAdhocCompletionFactory(ProcessCompletionEngineFactory):
+class MaskAdhocCompletion(ProcessCompletionEngine):
+    def complete_parameters(self, process_inputs={}):
+        self.set_parameters(process_inputs)
+        study_config = self.process.get_study_config()
+        attrib = self.get_attribute_values().get_parameters_attributes()
+        #self.process.input = os.path.join(
+            #study_config.input_directory, '%s_%s.npy'
+            #% (attrib['input']['center'],
+               #attrib['input']['subject']))
+        self.process.mask = os.path.join(
+            study_config.shared_directory,
+            'template_masks/%s.npy' % attrib['mask']['mask_type'])
+        #self.process.output = os.path.join(
+            #study_config.output_directory, '%s_%s_%s_masked.npy'
+            #% (attrib['output']['center'],
+               #attrib['output']['subject'],
+               #attrib['output']['analysis']))
+        # build a completely custom output
+        in_file = self.process.input
+        if in_file not in (None, traits.Undefined, ''):
+            dot = in_file.rfind('.')
+            if dot >= 0:
+                extension = in_file[dot + 1:]
+                in_file = in_file[:dot]
+            else:
+                extention = '.npy'
+            self.process.output = os.path.join(
+                study_config.output_directory, '%s_masked.%s'
+                % (in_file, extension))
+
+
+class AvgPipelineAdhocCompletion(ProcessCompletionEngine):
+    def complete_parameters(self, process_inputs={}):
+        self.set_parameters(process_inputs)
+        study_config = self.process.get_study_config()
+        attrib = self.get_attribute_values().get_parameters_attributes()
+        self.process.template_mask = os.path.join(
+            study_config.shared_directory,
+            'template_masks/%s.npy' % attrib['template_mask']['mask_type'])
+        self.process.average_inf = os.path.join(
+            study_config.output_directory, '%s_%s_%s_average_%s.npy'
+            % (attrib['average_inf']['center'],
+               attrib['average_inf']['subject'],
+               attrib['average_inf']['analysis'],
+               attrib['average_inf']['threshold']))
+        self.process.average_sup = os.path.join(
+            study_config.output_directory, '%s_%s_%s_average_%s.npy'
+            % (attrib['average_sup']['center'],
+               attrib['average_sup']['subject'],
+               attrib['average_sup']['analysis'],
+               attrib['average_sup']['threshold']))
+
+
+class BvCapsulExProcessAdhocCompletionFactory(ProcessCompletionEngineFactory):
     factory_id = 'bv_capsul_ex'
 
+    process_map = {
+        'threshold': ThresholdProcessAdhocCompletion,
+        'mask': MaskAdhocCompletion,
+        'average_pipeline': AvgPipelineAdhocCompletion,
+    }
+
     def get_completion_engine(self, process, name):
-        if isinstance(process, ThresholdProcess):
-            return ThresholdProcessAdhocCompletion(process, name)
+        if not name:
+            name = process.name
+        engine = self.process_map.get(name)
+        if engine is not None:
+            return engine(process, name)
         return ProcessCompletionEngine(process, name)
 
 
-#class AttributedMask(AttributedProcess):
+#class MaskAttributes(ProcessAttributes):
 
     #def __init__(self, process, study_config, name=None):
         #super(AttributedMask, self).__init__(process, study_config,

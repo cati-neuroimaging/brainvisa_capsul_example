@@ -21,6 +21,10 @@ class BrainvisaTestSchema(AttributesSchema):
 class BrainvisaTestSharedSchema(AttributesSchema):
     factory_id = 'bv_capsul_shared'
 
+    class Mask(EditableAttributes):
+        mask_type = String()
+
+
 class AveragePipelineAttributes(ProcessAttributes):
     factory_id = 'AveragePipeline'
 
@@ -35,10 +39,8 @@ class AveragePipelineAttributes(ProcessAttributes):
         self.set_parameter_attributes('average_inf', 'output',
                                       ['Acquisition', 'Processing'],
                                       dict(type='average', threshold='inf'))
-
-        self.set_parameter_attributes('template', 'shared',
-                                      ['Acquisition', 'Processing'],
-                                      dict(type='average', threshold='inf'))
+        self.set_parameter_attributes('template_mask', 'shared', 'Mask',
+                                      dict(type='array'))
 
 
 class ThresholdAttributes(ProcessAttributes):
@@ -51,10 +53,26 @@ class ThresholdAttributes(ProcessAttributes):
                                       dict(type='array'))
         self.set_parameter_attributes('mask_sup', 'output',
                                       ['Acquisition', 'Processing'],
-                                      dict(type='average', threshold='sup'))
+                                      dict(type='array', threshold='sup'))
         self.set_parameter_attributes('mask_inf', 'output',
                                       ['Acquisition', 'Processing'],
-                                      dict(type='average', threshold='inf'))
+                                      dict(type='array', threshold='inf'))
+
+
+class MaskAttributes(ProcessAttributes):
+    factory_id = 'Mask'
+
+    def __init__(self, process, schema_dict):
+        super(MaskAttributes, self).__init__(process, schema_dict)
+
+        self.set_parameter_attributes('input', 'input', 'Acquisition',
+                                      dict(type='array'))
+        self.set_parameter_attributes('mask', 'shared', 'Mask',
+                                      dict(type='array', mask_type='mask'))
+        self.set_parameter_attributes('output', 'output',
+                                      ['Acquisition', 'Processing'],
+                                      dict(type='array'))
+
 
 
 if __name__ == '__main__':

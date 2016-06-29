@@ -37,6 +37,7 @@ class TestCapsulEx(unittest.TestCase):
         study_config.input_directory = self.input
         study_config.output_directory = os.path.join(
             self.work_dir, 'output_data')
+        study_config.shared_directory = os.path.join(self.input, 'share')
         study_config.somaworkflow_computing_resource = 'localhost'
         study_config.somaworkflow_computing_resources_config.localhost = {
             'transfer_paths': [],
@@ -47,7 +48,8 @@ class TestCapsulEx(unittest.TestCase):
             'bv_capsul_ex.schema']
         study_config.process_completion = 'bv_capsul_ex'
         study_config.attributes_schemas = {'input': 'bv_capsul_ex',
-                                           'output': 'bv_capsul_ex'}
+                                           'output': 'bv_capsul_ex',
+                                           'shared': 'bv_capsul_shared'}
         self.study_config = study_config
 
     def tearDown(self):
@@ -157,11 +159,12 @@ class TestCapsulEx(unittest.TestCase):
                          'alpha_centauri_r2d2_M0_thresholded_sup.npy'))
         mask =  get_process_instance('bv_capsul_ex.ex_processes.Mask',
                                      study_config)
-        amask = ProcessCompletionEngine.get_attributed_process(
-            mask, 'mask')
+        amask = ProcessCompletionEngine.get_completion_engine(mask, 'mask')
         self.assertTrue(amask is not None)
         attrib = {
-            'extension': 'npy',
+            'center': 'alpha_centauri',
+            'subject': 'r2d2',
+            'analysis': 'M0',
         }
         pinputs = {
             'capsul_attributes': attrib,
@@ -169,93 +172,76 @@ class TestCapsulEx(unittest.TestCase):
                                   'input_data_thresholded_inf.npy'),
         }
         amask.complete_parameters(process_inputs=pinputs)
+        self.assertEqual(mask.input, pinputs['input'])
+        self.assertEqual(mask.mask,
+                         os.path.join(study_config.shared_directory,
+                                      'template_masks/mask.npy'))
         self.assertEqual(mask.output,
                          os.path.join(study_config.output_directory,
                                       'input_data_thresholded_inf_masked.npy'))
 
-        avg =  ex_processes.AverageProcess()
-        aavg = AttributedProcessFactory().get_attributed_process(
-            avg, study_config, 'mask')
-        self.assertTrue(aavg is not None)
-        attrib = {
-            'extension': 'npy',
-        }
-        pinputs = {
-            'capsul_attributes': attrib,
-            'array_file': os.path.join(study_config.input_directory,
-                                       'input_data.npy'),
-            'mask': os.path.join(study_config.output_directory,
-                                 'input_data_thresholded_inf_masked.npy'),
-        }
-        aavg.complete_parameters(process_inputs=pinputs)
-        self.assertEqual(
-            avg.average,
-            os.path.join(study_config.output_directory,
-                'input_data_input_data_thresholded_inf_masked_average.npy'))
-
-    @unittest.skip("broken test for now")
     def test_pipeline_adhoc_completion(self):
         study_config = self.study_config
-        pipeline = ex_processes.AveragePipeline()
-        apipeline = AttributedProcessFactory().get_attributed_process(
-            pipeline, study_config, 'average_pipeline')
+        pipeline = get_process_instance(
+            'bv_capsul_ex.ex_processes.AveragePipeline', study_config)
+        apipeline = ProcessCompletionEngine.get_completion_engine(
+            pipeline, 'average_pipeline')
         self.assertTrue(apipeline is not None)
         attrib = {
-            'array_filename': 'input_data',
-            'extension': 'npy',
+            'center': 'alpha_centauri',
+            'subject': 'r2d2',
+            'analysis': 'M0',
+            'mask_type': 'amyelencephalic',
         }
         pinputs = {
             'capsul_attributes': attrib,
             'threshold': 0.75,
-            'template_mask': os.path.join(
-                study_config.input_directory,
-                'share/template_masks/amyelencephalic.npy'),
         }
         self.assertEqual(
-            apipeline.get_attributes_controller().user_traits().keys(),
-            ['array_filename', 'extension'])
+            sorted(apipeline.get_attribute_values().user_traits().keys()),
+            ['analysis', 'center', 'mask_type', 'subject'])
         apipeline.complete_parameters(process_inputs=pinputs)
         self.assertEqual(pipeline.threshold, 0.75)
         self.assertEqual(
             pipeline.template_mask,
-            os.path.join(study_config.input_directory,
-                         'share/template_masks/amyelencephalic.npy'))
-        self.assertEqual(
-            pipeline.nodes['threshold'].process.mask_inf,
-            os.path.join(study_config.output_directory,
-                         'input_data_thresholded_inf.npy'))
-        self.assertEqual(
-            pipeline.nodes['threshold'].process.mask_sup,
-            os.path.join(study_config.output_directory,
-                         'input_data_thresholded_sup.npy'))
-        self.assertEqual(
-            pipeline.nodes['template_mask_inf'].process.output,
-            os.path.join(study_config.output_directory,
-                         'input_data_thresholded_inf_masked.npy'))
-        self.assertEqual(
-            pipeline.nodes['template_mask_sup'].process.output,
-            os.path.join(study_config.output_directory,
-                         'input_data_thresholded_sup_masked.npy'))
+            os.path.join(study_config.shared_directory,
+                         'template_masks/amyelencephalic.npy'))
+        #self.assertEqual(
+            #pipeline.nodes['threshold'].process.mask_inf,
+            #os.path.join(study_config.output_directory,
+                         #'input_data_thresholded_inf.npy'))
+        #self.assertEqual(
+            #pipeline.nodes['threshold'].process.mask_sup,
+            #os.path.join(study_config.output_directory,
+                         #'input_data_thresholded_sup.npy'))
+        #self.assertEqual(
+            #pipeline.nodes['template_mask_inf'].process.output,
+            #os.path.join(study_config.output_directory,
+                         #'input_data_thresholded_inf_masked.npy'))
+        #self.assertEqual(
+            #pipeline.nodes['template_mask_sup'].process.output,
+            #os.path.join(study_config.output_directory,
+                         #'input_data_thresholded_sup_masked.npy'))
         self.assertEqual(
             pipeline.nodes['average_inf'].process.average,
             os.path.join(
                 study_config.output_directory,
-                'input_data_input_data_thresholded_inf_masked_average.npy'))
+                'alpha_centauri_r2d2_M0_average_inf.npy'))
         self.assertEqual(
             pipeline.nodes['average_sup'].process.average,
             os.path.join(
                 study_config.output_directory,
-                'input_data_input_data_thresholded_sup_masked_average.npy'))
+                'alpha_centauri_r2d2_M0_average_sup.npy'))
         self.assertEqual(
             pipeline.average_inf,
             os.path.join(
                 study_config.output_directory,
-                'input_data_input_data_thresholded_inf_masked_average.npy'))
+                'alpha_centauri_r2d2_M0_average_inf.npy'))
         self.assertEqual(
             pipeline.average_sup,
             os.path.join(
                 study_config.output_directory,
-                'input_data_input_data_thresholded_sup_masked_average.npy'))
+                'alpha_centauri_r2d2_M0_average_sup.npy'))
 
     @unittest.skip("broken test for now")
     def test_group_pipeline_adhoc_completion(self):
