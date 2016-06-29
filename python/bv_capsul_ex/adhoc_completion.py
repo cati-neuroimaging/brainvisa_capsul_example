@@ -4,6 +4,8 @@ import traits.api as traits
 from capsul.attributes.attributes_schema import ProcessAttributes
 from capsul.attributes.completion_engine import ProcessCompletionEngine, \
   ProcessCompletionEngineFactory
+#from capsul.attributes.completion_engine_factory \
+    #import BuiltinProcessCompletionEngineFactory
 from bv_capsul_ex.ex_processes import ThresholdProcess, Mask, AverageProcess, \
     AveragePipeline, GroupAveragePipeline
 
@@ -67,6 +69,12 @@ class AvgPipelineAdhocCompletion(ProcessCompletionEngine):
         self.set_parameters(process_inputs)
         study_config = self.process.get_study_config()
         attrib = self.get_attribute_values().get_parameters_attributes()
+        self.process.array_file = os.path.join(
+            study_config.input_directory,
+            'database/random_matrix/%s/%s/%s.npy' %
+            (attrib['array_file']['center'],
+             attrib['array_file']['subject'],
+             attrib['array_file']['subject'],))
         self.process.template_mask = os.path.join(
             study_config.shared_directory,
             'template_masks/%s.npy' % attrib['template_mask']['mask_type'])
@@ -91,15 +99,34 @@ class BvCapsulExProcessAdhocCompletionFactory(ProcessCompletionEngineFactory):
         'threshold': ThresholdProcessAdhocCompletion,
         'mask': MaskAdhocCompletion,
         'average_pipeline': AvgPipelineAdhocCompletion,
+        'individual_avg': AvgPipelineAdhocCompletion,
+        'AveragePipeline': AvgPipelineAdhocCompletion,
     }
 
     def get_completion_engine(self, process, name):
-        if not name:
-            name = process.name
-        engine = self.process_map.get(name)
-        if engine is not None:
-            return engine(process, name)
-        return ProcessCompletionEngine(process, name)
+        if hasattr(process, 'completion_engine'):
+            return process.completion_engine
+
+        names = []
+        if name:
+            names.append(name)
+        if hasattr(process, 'context_name'):
+            names.append(process.context_name)
+        names.append(process.name)
+        #print('get_completion_engine:', names)
+        for pname in names:
+            engine = self.process_map.get(pname)
+            if engine is not None:
+                return engine(process, name)
+        try:
+            factory \
+                = process.get_study_config().modules_data.attributes_factory \
+                    .get('process_completion', 'builtin')
+        except KeyError:
+            pass
+        if factory is None:
+            factory = BuiltinProcessCompletionEngineFactory()
+        return factory.get_completion_engine(process, name)
 
 
 #class MaskAttributes(ProcessAttributes):

@@ -69,7 +69,10 @@ class TestCapsulEx(unittest.TestCase):
         self.input_files = [os.path.join(p, x + '.npy')
                             for p, x in zip(input_dirs, self.subjects)]
         self.pipeline = ex_processes.AveragePipeline()
-        self.pipeline2 = ex_processes.GroupAveragePipeline()
+        self.pipeline.set_study_config(self.study_config)
+        self.pipeline2 = get_process_instance(
+            'bv_capsul_ex.ex_processes.GroupAveragePipeline',
+            self.study_config)
         self.pipeline.array_file = self.input_files[0]
         self.pipeline.template_mask = os.path.join(
             self.input, 'share/template_masks/amyelencephalic.npy')
@@ -83,21 +86,21 @@ class TestCapsulEx(unittest.TestCase):
             self.input_files[0],
             self.input_files[1],
         ]
-        self.pipeline2.template_mask = os.path.join(
-            self.input, 'share/template_masks/amyelencephalic.npy')
-        self.pipeline2.threshold = 0.56
-        self.pipeline2.group_average_sup = os.path.join(
-            self.output, 'group_sup.npy')
-        self.pipeline2.group_average_inf = os.path.join(
-            self.output, 'group_inf.npy')
-        self.pipeline2.averages_sup = [
-            os.path.join(self.output, '%s_sup.npy' % self.subjects[0]),
-            os.path.join(self.output, '%s_sup.npy' % self.subjects[1])
-        ]
-        self.pipeline2.averages_inf = [
-            os.path.join(self.output, '%s_inf.npy' % self.subjects[0]),
-            os.path.join(self.output, '%s_inf.npy' % self.subjects[1])
-        ]
+        #self.pipeline2.template_mask = os.path.join(
+            #self.input, 'share/template_masks/amyelencephalic.npy')
+        #self.pipeline2.threshold = 0.56
+        #self.pipeline2.group_average_sup = os.path.join(
+            #self.output, 'group_sup.npy')
+        #self.pipeline2.group_average_inf = os.path.join(
+            #self.output, 'group_inf.npy')
+        #self.pipeline2.averages_sup = [
+            #os.path.join(self.output, '%s_sup.npy' % self.subjects[0]),
+            #os.path.join(self.output, '%s_sup.npy' % self.subjects[1])
+        #]
+        #self.pipeline2.averages_inf = [
+            #os.path.join(self.output, '%s_inf.npy' % self.subjects[0]),
+            #os.path.join(self.output, '%s_inf.npy' % self.subjects[1])
+        #]
 
     def test_structure(self):
         self.setup_pipeline()
@@ -247,22 +250,23 @@ class TestCapsulEx(unittest.TestCase):
     def test_group_pipeline_adhoc_completion(self):
         self.setup_pipeline()
         study_config = self.study_config
-        agpipeline = AttributedProcessFactory().get_attributed_process(
-            self.pipeline2, study_config, 'group_average_pipeline')
+        agpipeline = ProcessCompletionEngine.get_completion_engine(
+            self.pipeline2, 'group_average_pipeline')
         self.assertTrue(agpipeline is not None)
         attrib = {
-            'group': self.groups,
+            'center': self.groups,
             'subject': self.subjects,
-            'extension': 'npy',
-            'template': 'amyelencephalic',
+            'mask_type': 'amyelencephalic',
+            'analysis': ['M0'],
         }
         pinputs = {
             'capsul_attributes': attrib,
             'threshold': 0.55,
+            'input_files': self.input_files
         }
         self.assertEqual(
-            agpipeline.get_attributes_controller().user_traits().keys(),
-            ['group', 'subject', 'extension', 'template'])
+            sorted(agpipeline.get_attribute_values().user_traits().keys()),
+            ['analysis', 'center', 'mask_type', 'subject'])
         agpipeline.complete_parameters(process_inputs=pinputs)
         for ifname in self.pipeline2.input_files:
             self.assertTrue(os.path.exists(ifname))
